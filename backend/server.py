@@ -207,12 +207,23 @@ async def list_trades(account_id: str, user: Dict[str, Any] = Depends(current_us
     return await db.trades.find({"account_id": account_id}, {"_id": 0}).sort([("entry_date", -1), ("created_at", -1)]).to_list(500)
 
 
+def normalize_pnl(pnl: float, result: str) -> float:
+    magnitude = abs(float(pnl))
+    if result == "loss":
+        return -magnitude
+    if result == "breakeven":
+        return 0.0
+    return magnitude
+
+
 @api_router.post("/trades")
 async def create_trade(body: TradeBody, user: Dict[str, Any] = Depends(current_user)) -> Dict[str, Any]:
     await owned_account(body.account_id, user)
     if body.result not in {"win", "loss", "breakeven"}:
         raise HTTPException(status_code=400, detail="Resultado inválido")
-    trade = {"id": make_id(), **body.model_dump(), "created_at": now_iso()}
+    data = body.model_dump()
+    data["pnl"] = normalize_pnl(data["pnl"], data["result"])
+    trade = {"id": make_id(), **data, "created_at": now_iso()}
     await db.trades.insert_one(dict(trade))
     return trade
 
@@ -221,6 +232,7 @@ async def create_trade(body: TradeBody, user: Dict[str, Any] = Depends(current_u
 async def update_trade(trade_id: str, body: TradeBody, user: Dict[str, Any] = Depends(current_user)) -> Dict[str, Any]:
     await owned_account(body.account_id, user)
     changes = body.model_dump()
+    changes["pnl"] = normalize_pnl(changes["pnl"], changes["result"])
     await db.trades.update_one({"id": trade_id, "account_id": body.account_id}, {"$set": changes})
     result = await db.trades.find_one({"id": trade_id, "account_id": body.account_id}, {"_id": 0})
     if not result:
@@ -664,6 +676,15 @@ async def lot_size(body: LotBody, user: Dict[str, Any] = Depends(current_user)) 
 
 app.include_router(api_router)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+
+@app.on_event("startup")
+async def normalize_existing_trades() -> None:
+    """Corrige operaciones antiguas donde el signo del pnl no coincide con el resultado.
+    Marca cada trade migrado con pnl_normalized=True para no reprocesar."""
+    async for trade in db.trades.find({"pnl_normalized": {"$ne": True}}, {"_id": 0, "id": 1, "pnl": 1, "result": 1}):
+        expected = normalize_pnl(trade.get("pnl", 0), trade.get("result", "win"))
+        await db.trades.update_one({"id": trade["id"]}, {"$set": {"pnl": expected, "pnl_normalized": True}})
 
 
 @app.on_event("shutdown")

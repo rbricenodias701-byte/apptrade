@@ -1,0 +1,35 @@
+{
+  "summary": "PnL sign normalization bug fix PASS end-to-end. Backend pytest 12/12 passed: (a) POST /api/trades normalizes pnl: win/50→50, loss/30→-30, breakeven/10→0, loss/10.76→-10.76, loss/-42.5→-42.5; (b) PATCH /api/trades/{id} inverts sign on result change (win→loss inverts 100→-100, loss→win inverts -75→+75, any→breakeven→0); (c) Dashboard total_pnl reflects normalized values (loss trades subtract); (d) Startup migration invariants hold — no loss trade has pnl>0, no breakeven has pnl!=0, no win has pnl<0 for the QA account. Frontend Journal flow verified on 390x844 mobile viewport: created loss trade with pnl=77 (no sign) → card renders '−77.00 USD' in EXACT color rgb(239,68,68) = #EF4444 = colors.error (RED) ✓; opened edit on that loss trade → pnl TextInput shows '77' (Math.abs, no leading '-') so user never types the minus ✓; switched result to 'Ganada' and saved → same card now shows '+77.00 USD' in rgb(16,185,129) = #10B981 = colors.success (GREEN) ✓. testIDs used: journal-add, trade-modal, trade-result-{win|loss|breakeven}, trade-pnl, trade-date, trade-review, trade-save, trade-edit-<id>, trade-delete-<id>.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pnl_normalization.py",
+    "/app/test_reports/pytest/pytest_results_iteration5.xml",
+    "/app/test_reports/screens/iter5_journal_loss.jpeg",
+    "/app/test_reports/screens/iter5_journal_win.jpeg"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py normalize_pnl (lines 210-216) is simple and correct: abs()+sign by result. Applied in create_trade (225) and update_trade (235).",
+    "server.py @app.on_event('startup') normalize_existing_trades iterates {pnl_normalized: {$ne: True}} and sets both pnl and pnl_normalized=True — idempotent on subsequent boots (verified by the three invariant tests).",
+    "journal.tsx save() (line 31) normalizes on the client via Math.abs + sign-by-result before POST/PATCH, providing defense-in-depth; openEdit (line 30) uses String(Math.abs(trade.pnl)) so the input never shows '-'.",
+    "journal.tsx card color logic (line 34): `trade.pnl >= 0 ? colors.success : colors.error` — since backend enforces sign, this correctly renders red for negative loss values and green for positive/zero. Confirmed colors resolve to #EF4444 and #10B981 in DOM.",
+    "Minor: NoteBody/AiRequest/TradeBody don't strip _id (Mongo ObjectId) explicitly, but all reads use projection {'_id':0} so no leaks — good.",
+    "Minor: startup migration runs a full-collection scan on every boot (only where pnl_normalized!=True). Once migrated, subsequent boots scan an empty set — acceptable. No index on pnl_normalized but the flag filter narrows quickly."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (12/12 pytest)",
+    "frontend": "100% of executed flows (login → Journal → create loss (pnl=77 no sign) → verify −77.00 USD red → edit → verify input='77' abs → switch to win → verify +77.00 USD green → cleanup)"
+  },
+  "seed_data_creation": "No permanent seed. Test trades are created and deleted within each pytest case; UI test trade also cleaned up via delete button.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "QA login: qa.apextrade@example.com / ApexTrade123. Preview URL: https://trader-daily-tracker.preview.emergentagent.com. Journal testIDs are stable: journal-add, trade-modal, trade-result-win/loss/breakeven, trade-pnl (TextInput, always shows absolute value), trade-save, trade-edit-<uuid>, trade-delete-<uuid>. Backend enforces: pnl_normalized flag on trades collection; POST/PATCH always normalize via normalize_pnl(pnl, result). Regression test file: /app/backend/tests/test_pnl_normalization.py. Note: modal is rendered at bottom of screen (transparent overlay) — always use scroll_into_view_if_needed() before clicking result-loss/breakeven radio and save button on 844px viewport.",
+  "rca_of_issue": "Root cause was that the previous implementation stored the pnl value as-received (no server-side sign enforcement) while the UI colored/summed based on the raw signed value — so a user recording a loss with a positive magnitude (10.76) was displayed as +10.76 in green and ADDED to totals. Fix: (1) server normalize_pnl centralizes the sign contract, invoked in both create_trade and update_trade; (2) client save() mirrors the contract to avoid server round-trip surprises; (3) a startup migration retro-fixes legacy documents and stamps pnl_normalized=True to make the migration idempotent; (4) journal openEdit uses Math.abs so the input never shows a negative sign, meeting the UX requirement. All four layers verified by tests."
+}
