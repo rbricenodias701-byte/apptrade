@@ -22,6 +22,8 @@ Traders individuales con problemas de visión que buscan control diario/mensual 
 - Meta editable en monto o porcentaje sobre el capital.
 - Reportes PDF: diario, semanal, mensual (abre en pestaña autenticada).
 - Configuración: editar cuenta activa, cambiar modo de meta, notificación diaria opcional (nativa).
+- **Radar Oro (v2)**: detección automática AMD (acumulación → manipulación → distribución) en XAU/USD para 5m y 1h con contexto de tendencia (EMA 50/200 + estructura HH/LL). Auto-refresh cada 60s vía TwelveData API. Historial de señales persistido en Mongo.
+- **Calculadora de lotaje (v2)**: cálculo de lotes según capital + riesgo (% o $ fijo) + entrada + SL + contrato. Devuelve lotes, micro lotes, valor por lote y metas 1R/2R/3R.
 
 ## Endpoints clave (`/api/...`)
 - `POST /auth/register`, `POST /auth/login`

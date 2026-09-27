@@ -6,7 +6,9 @@ import os
 import uuid
 
 import bcrypt
+import httpx
 import jwt
+import numpy as np
 import requests
 from dotenv import load_dotenv
 from emergentintegrations.llm.chat import LlmChat, TextDelta, StreamDone, UserMessage
@@ -399,6 +401,265 @@ async def report_pdf(account_id: str, period: str = Query(default="monthly"), to
     lines = ["APEXTRADE JOURNAL", f"Reporte {label} - {today.isoformat()}", f"Cuenta: {account['name']}", f"Operaciones: {len(filtered)}", f"Resultado: {pnl:.2f} {account['currency']}", "", "Detalle:"]
     lines.extend([f"{t['entry_date']} | {t['symbol']} | {t['result']} | {float(t['pnl']):.2f}" for t in filtered[:28]])
     return Response(content=make_pdf(lines), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="apextrade-{period}.pdf"'})
+
+import asyncio
+
+TWELVEDATA_API_KEY = os.environ.get("TWELVEDATA_API_KEY", "")
+TWELVEDATA_BASE = "https://api.twelvedata.com"
+_market_cache: Dict[str, Any] = {}
+
+
+class LotBody(BaseModel):
+    capital: float = Field(gt=0)
+    risk_mode: str = Field(default="percentage")
+    risk_value: float = Field(gt=0)
+    entry_price: float = Field(gt=0)
+    stop_loss: float = Field(gt=0)
+    contract_size: float = Field(default=100.0, gt=0)
+
+
+async def fetch_candles(interval: str, size: int = 120) -> List[Dict[str, Any]]:
+    if not TWELVEDATA_API_KEY:
+        raise HTTPException(status_code=503, detail="TwelveData API key no configurada")
+    cache_key = f"candles-{interval}-{size}"
+    entry = _market_cache.get(cache_key)
+    now_ts = datetime.now(timezone.utc).timestamp()
+    if entry and now_ts - entry["at"] < 45:
+        return entry["data"]
+    params = {"symbol": "XAU/USD", "interval": interval, "outputsize": size, "apikey": TWELVEDATA_API_KEY, "order": "asc"}
+    async with httpx.AsyncClient(timeout=15) as http_client:
+        response = await http_client.get(f"{TWELVEDATA_BASE}/time_series", params=params)
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="No se pudo consultar TwelveData")
+    payload = response.json()
+    if payload.get("status") == "error":
+        raise HTTPException(status_code=502, detail=payload.get("message", "Error TwelveData"))
+    values = payload.get("values") or []
+    candles = [{"t": v["datetime"], "o": float(v["open"]), "h": float(v["high"]), "l": float(v["low"]), "c": float(v["close"])} for v in values]
+    _market_cache[cache_key] = {"at": now_ts, "data": candles}
+    return candles
+
+
+async def fetch_quote() -> Dict[str, Any]:
+    if not TWELVEDATA_API_KEY:
+        return {"available": False}
+    cache_key = "quote"
+    entry = _market_cache.get(cache_key)
+    now_ts = datetime.now(timezone.utc).timestamp()
+    if entry and now_ts - entry["at"] < 20:
+        return entry["data"]
+    try:
+        async with httpx.AsyncClient(timeout=10) as http_client:
+            response = await http_client.get(f"{TWELVEDATA_BASE}/quote", params={"symbol": "XAU/USD", "apikey": TWELVEDATA_API_KEY})
+        payload = response.json()
+        if payload.get("status") == "error":
+            raise ValueError(payload.get("message", "error"))
+        data = {
+            "available": True,
+            "price": float(payload.get("close") or 0),
+            "change": float(payload.get("change") or 0),
+            "change_pct": float(payload.get("percent_change") or 0),
+            "previous_close": float(payload.get("previous_close") or 0),
+        }
+        _market_cache[cache_key] = {"at": now_ts, "data": data}
+        return data
+    except Exception as exc:
+        logger.warning("Quote unavailable: %s", exc)
+        return {"available": False}
+
+
+def ema(values: List[float], period: int) -> float:
+    if not values:
+        return 0.0
+    period = max(1, min(period, len(values)))
+    weights = 2 / (period + 1)
+    result = float(np.mean(values[:period]))
+    for value in values[period:]:
+        result = value * weights + result * (1 - weights)
+    return result
+
+
+def atr(candles: List[Dict[str, float]], period: int = 14) -> float:
+    if len(candles) < 2:
+        return 0.0
+    trs: List[float] = []
+    for i in range(1, len(candles)):
+        prev_close = candles[i - 1]["c"]
+        high = candles[i]["h"]
+        low = candles[i]["l"]
+        trs.append(max(high - low, abs(high - prev_close), abs(low - prev_close)))
+    if not trs:
+        return 0.0
+    return float(np.mean(trs[-period:]))
+
+
+def detect_structure(candles: List[Dict[str, float]], lookback: int = 40) -> str:
+    if len(candles) < 10:
+        return "neutral"
+    closes = [c["c"] for c in candles]
+    e50 = ema(closes, min(50, len(closes)))
+    e200 = ema(closes, min(200, len(closes)))
+    look = min(lookback, len(candles))
+    slice_ = candles[-look:]
+    mid = look // 2
+    prev_high = max(c["h"] for c in slice_[:mid])
+    prev_low = min(c["l"] for c in slice_[:mid])
+    late_high = max(c["h"] for c in slice_[mid:])
+    late_low = min(c["l"] for c in slice_[mid:])
+    higher_hl = late_high > prev_high and late_low > prev_low
+    lower_hl = late_high < prev_high and late_low < prev_low
+    if e50 > e200 and higher_hl:
+        return "alcista"
+    if e50 < e200 and lower_hl:
+        return "bajista"
+    if higher_hl:
+        return "alcista"
+    if lower_hl:
+        return "bajista"
+    return "neutral"
+
+
+def detect_accumulation(candles: List[Dict[str, float]]) -> Dict[str, Any]:
+    if len(candles) < 8:
+        return {"present": False}
+    atr_val = atr(candles)
+    if atr_val <= 0:
+        return {"present": False}
+    best: Optional[Dict[str, Any]] = None
+    for window in range(6, min(30, len(candles) - 1) + 1):
+        segment = candles[-(window + 1):-1]
+        if len(segment) < window:
+            continue
+        wick_high = max(c["h"] for c in segment)
+        wick_low = min(c["l"] for c in segment)
+        body_high = max(max(c["o"], c["c"]) for c in segment)
+        body_low = min(min(c["o"], c["c"]) for c in segment)
+        height = wick_high - wick_low
+        if height > atr_val * 2.5 or height <= 0:
+            continue
+        tol = max(atr_val * 0.2, height * 0.15)
+        equal_highs = sum(1 for c in segment if wick_high - c["h"] <= tol)
+        equal_lows = sum(1 for c in segment if c["l"] - wick_low <= tol)
+        if equal_highs < 2 and equal_lows < 2:
+            continue
+        candidate = {
+            "present": True,
+            "window": window,
+            "range_high": round(wick_high, 3),
+            "range_low": round(wick_low, 3),
+            "body_high": round(body_high, 3),
+            "body_low": round(body_low, 3),
+            "equal_highs": equal_highs,
+            "equal_lows": equal_lows,
+            "atr": round(atr_val, 3),
+            "height": round(height, 3),
+        }
+        if best is None or window > best["window"]:
+            best = candidate
+    return best or {"present": False}
+
+
+def detect_manipulation(candles: List[Dict[str, float]], accumulation: Dict[str, Any]) -> Dict[str, Any]:
+    if not accumulation.get("present") or len(candles) < 2:
+        return {"present": False}
+    last = candles[-1]
+    range_high = accumulation["range_high"]
+    range_low = accumulation["range_low"]
+    body_high = accumulation["body_high"]
+    body_low = accumulation["body_low"]
+    atr_val = accumulation["atr"]
+    sweep_low = last["l"] < range_low - atr_val * 0.05 and last["c"] > range_low
+    sweep_high = last["h"] > range_high + atr_val * 0.05 and last["c"] < range_high
+    choch_up = last["c"] > body_high
+    choch_down = last["c"] < body_low
+    if sweep_low and choch_up:
+        return {"present": True, "direction": "long", "level": round(range_low, 3), "target_entry": round((range_low + body_high) / 2, 3), "stage": "listo_para_retest"}
+    if sweep_high and choch_down:
+        return {"present": True, "direction": "short", "level": round(range_high, 3), "target_entry": round((range_high + body_low) / 2, 3), "stage": "listo_para_retest"}
+    if sweep_low:
+        return {"present": True, "direction": "long", "level": round(range_low, 3), "target_entry": None, "stage": "sweep_hecho_esperando_choch"}
+    if sweep_high:
+        return {"present": True, "direction": "short", "level": round(range_high, 3), "target_entry": None, "stage": "sweep_hecho_esperando_choch"}
+    return {"present": False}
+
+
+def analyze_timeframe(candles: List[Dict[str, float]]) -> Dict[str, Any]:
+    accumulation = detect_accumulation(candles)
+    manipulation = detect_manipulation(candles, accumulation)
+    return {
+        "trend": detect_structure(candles),
+        "accumulation": accumulation,
+        "manipulation": manipulation,
+        "last_price": candles[-1]["c"] if candles else 0,
+        "last_time": candles[-1]["t"] if candles else "",
+    }
+
+
+def alignment_status(five: Dict[str, Any], hour: Dict[str, Any]) -> Dict[str, Any]:
+    m5 = five.get("manipulation") or {}
+    trend = hour.get("trend", "neutral")
+    if m5.get("present") and m5.get("stage") == "listo_para_retest":
+        direction = m5["direction"]
+        aligned_trend = (direction == "long" and trend == "alcista") or (direction == "short" and trend == "bajista") or trend == "neutral"
+        strong = aligned_trend and (hour.get("manipulation", {}).get("present") or hour.get("accumulation", {}).get("present"))
+        return {
+            "aligned": True,
+            "strong": bool(strong),
+            "direction": direction,
+            "message": (
+                f"Alineación 5m + 1h. Manipulación {direction} completa en 5m. Tendencia 1h: {trend}. Esperá retesteo a {m5.get('target_entry')} antes de entrar."
+                if strong else
+                f"Manipulación {direction} en 5m lista. Tendencia 1h: {trend}. Confirmá antes de entrar."
+            ),
+        }
+    return {"aligned": False, "strong": False, "direction": None, "message": "Sin alineación clara. Seguí observando el precio."}
+
+
+@api_router.get("/market/xauusd")
+async def market_xauusd(user: Dict[str, Any] = Depends(current_user)) -> Dict[str, Any]:
+    candles_5m, candles_1h, quote = await asyncio.gather(fetch_candles("5min"), fetch_candles("1h"), fetch_quote())
+    five = analyze_timeframe(candles_5m)
+    hour = analyze_timeframe(candles_1h)
+    alignment = alignment_status(five, hour)
+    payload = {"quote": quote, "five_min": five, "one_hour": hour, "alignment": alignment, "generated_at": now_iso(), "new_signal": False}
+    if alignment.get("aligned"):
+        record = {"id": make_id(), "user_id": user["id"], "direction": alignment["direction"], "strong": alignment.get("strong", False), "price": quote.get("price", 0), "message": alignment["message"], "created_at": now_iso()}
+        existing = await db.market_signals.find_one({"user_id": user["id"]}, sort=[("created_at", -1)], projection={"_id": 0, "created_at": 1})
+        if not existing or (datetime.now(timezone.utc) - datetime.fromisoformat(existing["created_at"])).total_seconds() > 300:
+            await db.market_signals.insert_one(dict(record))
+            payload["new_signal"] = True
+    return payload
+
+
+@api_router.get("/market/signals")
+async def market_signals(user: Dict[str, Any] = Depends(current_user)) -> List[Dict[str, Any]]:
+    return await db.market_signals.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(30)
+
+
+@api_router.post("/tools/lot-size")
+async def lot_size(body: LotBody, user: Dict[str, Any] = Depends(current_user)) -> Dict[str, Any]:
+    if body.risk_mode not in {"percentage", "amount"}:
+        raise HTTPException(status_code=400, detail="Modo de riesgo inválido")
+    risk_amount = body.capital * body.risk_value / 100 if body.risk_mode == "percentage" else body.risk_value
+    if risk_amount <= 0:
+        raise HTTPException(status_code=400, detail="Riesgo debe ser mayor a 0")
+    stop_distance = abs(body.entry_price - body.stop_loss)
+    if stop_distance <= 0:
+        raise HTTPException(status_code=400, detail="Entrada y stop no pueden ser iguales")
+    dollar_per_lot = stop_distance * body.contract_size
+    lots = risk_amount / dollar_per_lot
+    return {
+        "lots": round(lots, 3),
+        "micro_lots": round(lots * 100, 1),
+        "risk_amount": round(risk_amount, 2),
+        "stop_distance": round(stop_distance, 3),
+        "dollar_per_lot": round(dollar_per_lot, 2),
+        "reward_1r": round(risk_amount, 2),
+        "reward_2r": round(risk_amount * 2, 2),
+        "reward_3r": round(risk_amount * 3, 2),
+    }
+
+
 
 
 app.include_router(api_router)

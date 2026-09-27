@@ -1,0 +1,43 @@
+{
+  "summary": "Radar Oro + Calculadora features PASS end-to-end. Backend pytest: 8/8 passed (market/xauusd shape, market/signals list, lot-size percentage=0.333, lot-size amount=0.167, stop==entry → 400, invalid risk_mode → 400, auth guards on both endpoints). Frontend flow verified: login QA → Home shows home-open-radar and home-open-calculator tiles → Radar screen loads XAU/USD price 4286.24, 5m + 1h timeframes with trend/acumulación/manipulación cards, countdown 56s→54s (auto-refresh timer working) → radar-back returns to Home → Calculadora mode toggle (percentage/amount) works → capital=10000, mode=%, risk=1, entry=4286, stop=4283 → calc-result shows 0.333 lots · $100 risk · $300/lote · 1R=$100 2R=$200 3R=$300 → calc-back returns Home. NOTE: spec expected lots=0.166 for risk_mode=amount 50/300 but Python round(0.16666..., 3) = 0.167 (rounding-half-to-even). This is a spec typo, not a bug; backend response is mathematically correct.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_market_and_lot.py",
+    "/app/backend/tests/test_apextrade_regression.py",
+    "/app/test_reports/pytest/pytest_results_iteration4.xml",
+    "/app/test_reports/screens/iter4_home.jpeg",
+    "/app/test_reports/screens/iter4_radar.jpeg",
+    "/app/test_reports/screens/iter4_calc.jpeg"
+  ],
+  "action_items": [
+    "Cosmetic only: Calculadora percentage-mode label reads '%  del capital' (double space between % and 'del'). Minor visual nit in /app/frontend/app/calculator.tsx:52.",
+    "Optional: fix spec/response mismatch expectation. Spec review_request said lots=0.166 for risk_mode=amount with risk_value=50 & $300/lote; backend returns 0.167 due to round(50/300, 3). If exact 0.166 is desired, switch to math.floor(lots*1000)/1000 (truncation) in server.py lot_size — but the current behavior is standard rounding and is fine."
+  ],
+  "critical_code_review_comments": [
+    "server.py fetch_candles uses a 45s cache keyed per interval — good rate-limit hygiene for TwelveData (8 req/min).",
+    "server.py market_xauusd correctly persists new_signal with 5-minute dedup window and uses projection={'_id': 0} on subsequent reads; market/signals also excludes _id via projection.",
+    "server.py lot_size validates risk_mode ∈ {percentage, amount} with 400, stop_distance<=0 with 400, and returns rounded fields as expected.",
+    "radar.tsx auto-refresh: setInterval closes over `load` captured via useCallback with empty deps — safe; countdown decrement + reload at 0 verified live (56s→54s).",
+    "radar.tsx uses testID `radar-tf-5 MINUTOS` / `radar-tf-1 HORA` (spaces in testID). Works but is fragile — main agent may prefer testIDs like `radar-tf-5m` / `radar-tf-1h` for robustness.",
+    "calculator.tsx correctly disables submit until all required fields are populated and posts to /api/tools/lot-size via calcLot()."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (8/8 pytest)",
+    "frontend": "100% of executed flows (login → Home cards → Radar (5m/1h/quote/countdown/back) → Calculator (mode toggle/submit/result/back))"
+  },
+  "seed_data_creation": "No new seed data created. Any signals persisted to market_signals collection during /market/xauusd calls are user-scoped for QA user and dedup'd within 5 minutes — harmless.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "QA login: qa.apextrade@example.com / ApexTrade123. Preview URL: https://trader-daily-tracker.preview.emergentagent.com. TwelveData API rate limit is 8 req/min — backend caches candles 45s and quote 20s. Auth testIDs: auth-email / auth-password / auth-submit. Radar testIDs: radar-screen, radar-back, radar-quote-card, radar-tf-5 MINUTOS (note the space), radar-tf-1 HORA, open-calculator, signal-<id>. Calculator testIDs: calculator-screen, calc-back, calc-capital, calc-mode-percentage, calc-mode-amount, calc-risk, calc-entry, calc-stop, calc-contract, calc-submit, calc-result.",
+  "rca_of_issue": "N/A — all requested features working as designed. Only spec/impl numerical rounding note documented above."
+}

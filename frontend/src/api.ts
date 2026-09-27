@@ -49,3 +49,16 @@ export async function createNote(payload: { account_id: string; text: string; mo
 export async function deleteNote(id: string, accountId: string) { return apiFetch<{ ok: boolean }>(`/notes/${id}?account_id=${accountId}`, { method: "DELETE" }); }
 export async function getBriefing(accountId: string, question: string) { return apiFetch<{ text: string; market: { available: boolean; price?: number; change?: number; change_pct?: number; message?: string }; generated_at: string }>("/ai/briefing", { method: "POST", body: JSON.stringify({ account_id: accountId, question }) }); }
 export function reportUrl(accountId: string, period: string) { return `${API_URL}/reports/pdf?account_id=${encodeURIComponent(accountId)}&period=${period}`; }
+
+export type MarketQuote = { available: boolean; price?: number; change?: number; change_pct?: number; previous_close?: number };
+export type MarketAccumulation = { present: boolean; window?: number; range_high?: number; range_low?: number; body_high?: number; body_low?: number; equal_highs?: number; equal_lows?: number; atr?: number; height?: number };
+export type MarketManipulation = { present: boolean; direction?: "long" | "short"; level?: number; target_entry?: number | null; stage?: "listo_para_retest" | "sweep_hecho_esperando_choch" };
+export type MarketTimeframe = { trend: "alcista" | "bajista" | "neutral"; accumulation: MarketAccumulation; manipulation: MarketManipulation; last_price: number; last_time: string };
+export type MarketAlignment = { aligned: boolean; strong: boolean; direction: "long" | "short" | null; message: string };
+export type MarketAnalysis = { quote: MarketQuote; five_min: MarketTimeframe; one_hour: MarketTimeframe; alignment: MarketAlignment; generated_at: string; new_signal: boolean };
+export type MarketSignal = { id: string; direction: "long" | "short"; strong: boolean; price: number; message: string; created_at: string };
+export type LotResult = { lots: number; micro_lots: number; risk_amount: number; stop_distance: number; dollar_per_lot: number; reward_1r: number; reward_2r: number; reward_3r: number };
+
+export async function getMarketAnalysis() { return apiFetch<MarketAnalysis>("/market/xauusd"); }
+export async function getMarketSignals() { return apiFetch<MarketSignal[]>("/market/signals"); }
+export async function calcLot(payload: { capital: number; risk_mode: "percentage" | "amount"; risk_value: number; entry_price: number; stop_loss: number; contract_size?: number }) { return apiFetch<LotResult>("/tools/lot-size", { method: "POST", body: JSON.stringify({ contract_size: 100, ...payload }) }); }
