@@ -1,0 +1,32 @@
+{
+  "summary": "Journal perf fix VERIFIED end-to-end on mobile viewport 390x844. Root behavior confirmed: save/delete now update local state only — no GET /api/trades refetch after any mutation. Detailed evidence per phase (network counters captured via page.on('request')): (1) CREATE — created 5 consecutive trades (win 100 / loss 50 / win 200 / loss 30 / win 75). Result: 5 POST /api/trades, 0 GET /api/trades. Modal open→close latency was tight and consistent: 0.89/0.90/0.86/0.90/0.88s (avg 0.89s ≈ pure network RTT of POST). New cards appeared at the TOP of the list immediately after each save — verified by reading DOM testIDs after each save. No lag, no freeze, no modal-stuck state across 5 sequential creates. (2) EDIT — edited the top card (pnl 100 → 999). Result: 1 PATCH, 0 GET. Card innerText after save: 'XAUUSD · Compra\\n2026-09-27 · Ganada\\n+999.00 USD ...'. Update rendered in-place without refetch (setTrades map on updated.id). Edit latency 0.40s. (3) DELETE — clicked delete on the 2nd card. DOM element trade-<id> was gone within 148ms of click (before backend responded), confirming optimistic filter-out. Backend then completed with 1 DELETE, 0 GET afterwards. Fallback (setTrades(await getTrades(...))) was NOT triggered because DELETE succeeded. (4) REGRESSION account isolation — initial Journal load fired GET /api/trades?account_id=32c282d6-071c-4f06-b033-b4a994505bff (QA's selected account, not accounts[0]) — confirms getSelectedAccount(list) is honored. (5) REGRESSION pnl sign — a leftover 'TEST_UI_loss_sign' loss trade rendered as '−100.00 USD' (negative, in red) proving the normalize_pnl contract still holds. All 5 test trades created were cleaned up (4 via cleanup pass + 1 via test-delete). testIDs used: auth-email/password/submit, tab-journal, journal-screen, journal-add, trade-modal, trade-result-{win|loss|breakeven}, trade-pnl, trade-save, trade-<id>, trade-edit-<id>, trade-delete-<id>.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/screens/iter6_journal_perf.jpeg"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "journal.tsx save() (line 31) correctly branches: editing → updateTrade(...) then setTrades(map replace by id); new → createTrade(...) then setTrades(prev => [created, ...prev]). No getTrades() call in the save path. Matches the perf fix intent.",
+    "journal.tsx remove() (line 32) is a textbook optimistic delete: filter locally first, then await deleteTrade(); on catch, only then do a full getTrades(account.id) refetch as fallback. Measured DOM removal within 148ms of the click — well under the 300ms perception threshold.",
+    "useFocusEffect (line 28) still refetches trades on tab focus — that's correct and expected (keeps list fresh when returning to Journal). It is NOT called after each save/delete because save/delete don't navigate.",
+    "Type safety: updateTrade returns Trade so setTrades map is safely typed. createTrade returns Trade prepended — new trade appears at top which matches backend list ordering (newest first).",
+    "Minor risk: if two rapid deletes fail (network), the fallback getTrades() will run for each — but since the current behavior is exception-only, this is rare. Not blocking.",
+    "No SafeAreaView / deprecated expo-av / expo-barcode-scanner / expo-background-fetch usage in the touched file. No React Native red screen encountered during testing."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "not tested this iteration (frontend-only request)",
+    "frontend": "100% of executed flows: login → Journal → 5 consecutive creates (0 refetch, avg 0.89s each) → in-place edit (0 refetch) → optimistic delete (DOM removal in 148ms) → cleanup. Account isolation + PnL sign regressions also pass."
+  },
+  "seed_data_creation": "Ephemeral only. 5 test trades were created during the perf run and all deleted before exit (1 via test-delete + 4 via cleanup pass). Pre-existing 'TEST_UI_loss_sign' leftover from iteration 5 is still in the QA account (visible on final screenshot) — not created by this run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "QA: qa.apextrade@example.com / ApexTrade123. Preview URL: https://trader-daily-tracker.preview.emergentagent.com. Journal perf contract now enforced: create/edit/delete NEVER trigger GET /api/trades — only the initial load and useFocusEffect on tab focus do. When testing, capture network via page.on('request') and assert GET-count==0 within a mutation phase. Modal render is bottom-of-screen transparent overlay — always scroll_into_view_if_needed() before clicking trade-result-* radios and trade-save on 844px viewports. There is 1 leftover trade 'TEST_UI_loss_sign' (loss −100 USD) in the QA account from a previous iteration — main agent may want to purge it before demo. No backend changes required.",
+  "rca_of_issue": "Original bug: user with 49+ trades saw the app freeze during rapid save/delete because every mutation called getTrades(account.id) which fetched and re-rendered the entire list (O(N) network + O(N) rerender per action). Fix applied to /app/frontend/app/(tabs)/journal.tsx: (a) save() now uses setTrades(prev => [created, ...prev]) on create and setTrades(items.map(item => item.id===updated.id ? updated : item)) on edit — O(1) network, O(N) rerender only over the changed slice; (b) remove() filters locally first (optimistic) then awaits deleteTrade, with a getTrades() only in the catch fallback. Verified by network instrumentation that 5 POSTs + 1 PATCH + 1 DELETE produced 0 GETs. DOM-level check showed 148ms optimistic removal on delete. No regressions to account isolation or pnl sign normalization."
+}
