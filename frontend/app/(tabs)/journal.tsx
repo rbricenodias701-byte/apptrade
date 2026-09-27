@@ -3,7 +3,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from "react-native";
 
-import { Account, createTrade, deleteTrade, getAccounts, getTrades, Trade, updateTrade } from "@/src/api";
+import { Account, createTrade, deleteTrade, getAccounts, getSelectedAccount, getTrades, Trade, updateTrade } from "@/src/api";
 import { AppScroll, Card, Heading, PrimaryButton, SmallIconButton, formatMoney } from "@/src/components/trading-ui";
 import { makeStyles, useTheme } from "@/src/theme";
 
@@ -24,7 +24,7 @@ export default function JournalScreen() {
   const [entryDate, setEntryDate] = useState(today());
   const [review, setReview] = useState("");
   const [saving, setSaving] = useState(false);
-  const load = useCallback(async () => { const list = await getAccounts(); const selected = list[0]; setAccount(selected || null); if (selected) setTrades(await getTrades(selected.id)); }, []);
+  const load = useCallback(async () => { const list = await getAccounts(); const selected = await getSelectedAccount(list); setAccount(selected); if (selected) setTrades(await getTrades(selected.id)); }, []);
   useFocusEffect(useCallback(() => { load().catch(() => undefined); }, [load]));
   const openNew = () => { setEditing(null); setSymbol("XAUUSD"); setSide("Compra"); setResult("win"); setPnl(""); setEntryDate(today()); setReview(""); setModal(true); };
   const openEdit = (trade: Trade) => { setEditing(trade); setSymbol(trade.symbol); setSide(trade.side); setResult(trade.result); setPnl(String(trade.pnl)); setEntryDate(trade.entry_date); setReview(trade.review); setModal(true); };

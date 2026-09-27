@@ -2,10 +2,11 @@ import Constants from "expo-constants";
 
 import { storage } from "@/src/utils/storage";
 
-// Expo's public variable is the project contract; EXPO_BACKEND_URL remains a safe fallback for local setups.
-const configuredUrl = Constants.expoConfig?.extra?.backendUrl ?? process.env.EXPO_PUBLIC_BACKEND_URL ?? process.env.EXPO_BACKEND_URL;
+const configuredUrl = Constants.expoConfig?.extra?.backendUrl ?? process.env.EXPO_PUBLIC_BACKEND_URL;
+if (!configuredUrl) throw new Error("EXPO_PUBLIC_BACKEND_URL is required");
 const API_URL = `${String(configuredUrl).replace(/\/$/, "")}/api`;
 export const TOKEN_KEY = "apextrade_token";
+export const ACCOUNT_KEY = "apextrade_account";
 
 export type User = { id: string; name: string; email: string };
 export type Account = { id: string; name: string; initial_capital: number; currency: string; target_mode: "amount" | "percentage"; daily_target: number; monthly_target: number; stop_after_losses: number };
@@ -14,6 +15,11 @@ export type Dashboard = { account: Account; capital: number; total_pnl: number; 
 
 async function token() {
   return storage.secureGet(TOKEN_KEY, null);
+}
+
+export async function getSelectedAccount(accounts: Account[]) {
+  const saved = await storage.getItem(ACCOUNT_KEY, null);
+  return accounts.find((item) => item.id === saved) || accounts[0] || null;
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {

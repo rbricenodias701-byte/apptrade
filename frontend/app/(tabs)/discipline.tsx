@@ -3,7 +3,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
-import { Account, createNote, deleteNote, getAccounts, getDashboard, getNotes } from "@/src/api";
+import { Account, createNote, deleteNote, getAccounts, getDashboard, getNotes, getSelectedAccount } from "@/src/api";
 import { AppScroll, Card, Heading, PrimaryButton } from "@/src/components/trading-ui";
 import { makeStyles, useTheme } from "@/src/theme";
 
@@ -16,7 +16,7 @@ export default function DisciplineScreen() {
   const [stop, setStop] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [text, setText] = useState("");
-  const load = useCallback(async () => { const accounts = await getAccounts(); const selected = accounts[0]; if (!selected) return; setAccount(selected); const [dashboard, items] = await Promise.all([getDashboard(selected.id), getNotes(selected.id)]); setLosses(dashboard.consecutive_losses); setStop(dashboard.should_stop); setNotes(items); }, []);
+  const load = useCallback(async () => { const accounts = await getAccounts(); const selected = await getSelectedAccount(accounts); if (!selected) return; setAccount(selected); const [dashboard, items] = await Promise.all([getDashboard(selected.id), getNotes(selected.id)]); setLosses(dashboard.consecutive_losses); setStop(dashboard.should_stop); setNotes(items); }, []);
   useFocusEffect(useCallback(() => { load().catch(() => undefined); }, [load]));
   const add = async () => { if (!account || !text.trim()) return; const note = await createNote({ account_id: account.id, text: text.trim(), mood: "neutral" }); setNotes((items) => [note, ...items]); setText(""); };
   const remove = async (id: string) => { if (!account) return; await deleteNote(id, account.id); setNotes((items) => items.filter((item) => item.id !== id)); };

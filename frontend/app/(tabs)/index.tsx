@@ -3,12 +3,11 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
-import { Account, Dashboard, getAccounts, getDashboard } from "@/src/api";
+import { ACCOUNT_KEY, Account, Dashboard, getAccounts, getDashboard, getSelectedAccount } from "@/src/api";
 import { AppScroll, Card, Heading, Metric, PrimaryButton, Progress, SmallIconButton, formatMoney } from "@/src/components/trading-ui";
 import { storage } from "@/src/utils/storage";
 import { makeStyles, useTheme } from "@/src/theme";
 
-const ACCOUNT_KEY = "apextrade_account";
 export default function HomeScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -16,7 +15,7 @@ export default function HomeScreen() {
   const [accountId, setAccountId] = useState("");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
-  const load = useCallback(async () => { try { const list = await getAccounts(); setAccounts(list); const saved = await storage.getItem(ACCOUNT_KEY, null); const selected = list.find((item) => item.id === saved)?.id || list[0]?.id || ""; setAccountId(selected); if (selected) setDashboard(await getDashboard(selected)); } catch (err) { setError(err instanceof Error ? err.message : "No se pudo cargar"); } }, []);
+  const load = useCallback(async () => { try { const list = await getAccounts(); setAccounts(list); const selected = await getSelectedAccount(list); const selectedId = selected?.id || ""; setAccountId(selectedId); if (selectedId) setDashboard(await getDashboard(selectedId)); } catch (err) { setError(err instanceof Error ? err.message : "No se pudo cargar"); } }, []);
   useEffect(() => { load(); }, [load]);
   useFocusEffect(useCallback(() => { if (accountId) getDashboard(accountId).then(setDashboard).catch(() => undefined); }, [accountId]));
   const selectAccount = async (id: string) => { setAccountId(id); await storage.setItem(ACCOUNT_KEY, id); setDashboard(await getDashboard(id)); };

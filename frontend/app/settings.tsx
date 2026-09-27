@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Pressable, Text, TextInput, View } from "react-native";
 
-import { Account, createAccount, deleteAccount, getAccounts, reportUrl, TOKEN_KEY, updateAccount } from "@/src/api";
+import { Account, createAccount, deleteAccount, getAccounts, getSelectedAccount, reportUrl, TOKEN_KEY, updateAccount } from "@/src/api";
 import { AppScroll, Card, Heading, PrimaryButton } from "@/src/components/trading-ui";
 import { makeStyles, useTheme } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
@@ -21,7 +21,7 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCapital, setNewCapital] = useState("");
-  const load = useCallback(async () => { const list = await getAccounts(); setAccounts(list); const item = list[0]; if (item) { setSelected(item); setName(item.name); setCapital(String(item.initial_capital)); setDaily(String(item.daily_target)); setMonthly(String(item.monthly_target)); setMode(item.target_mode); } }, []);
+  const load = useCallback(async () => { const list = await getAccounts(); setAccounts(list); const item = await getSelectedAccount(list); if (item) { setSelected(item); setName(item.name); setCapital(String(item.initial_capital)); setDaily(String(item.daily_target)); setMonthly(String(item.monthly_target)); setMode(item.target_mode); } }, []);
   useEffect(() => { load().catch(() => undefined); }, [load]);
   const save = async () => { if (!selected) return; const updated = await updateAccount(selected.id, { name, initial_capital: Number(capital), daily_target: Number(daily), monthly_target: Number(monthly), target_mode: mode }); setSelected(updated); setAccounts((items) => items.map((item) => item.id === updated.id ? updated : item)); Alert.alert("Guardado", "La configuración de tu cuenta fue actualizada."); };
   const addAccount = async () => { if (!newName || !newCapital) return; const account = await createAccount({ name: newName, initial_capital: Number(newCapital), currency: "USD", target_mode: "amount", daily_target: 100, monthly_target: 1000, stop_after_losses: 2 }); setAccounts((items) => [...items, account]); setSelected(account); setName(account.name); setCapital(String(account.initial_capital)); setDaily("100"); setMonthly("1000"); setMode("amount"); setNewName(""); setNewCapital(""); };

@@ -1,0 +1,45 @@
+{
+  "summary": "Authenticated backend and mobile web regression passed. Login, tabs, journal CRUD/filter, discipline notes, AI result, account creation, target mode edits, all PDF launch actions, and 390x844 overflow checks completed successfully.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Account switching across screens",
+        "issue": "Home persists a selected account, but journal, discipline, assistant, and settings load accounts[0] instead of the persisted selection; operations/notes/AI/settings can therefore target the wrong account after switching.",
+        "affected_testIDs": ["tab-journal", "tab-discipline", "tab-assistant", "settings-screen", "account-<id>"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_apextrade_regression.py",
+    "/app/test_reports/pytest/pytest_results_iteration2.xml",
+    "/app/test_reports/screens/iteration2/final.png"
+  ],
+  "action_items": [
+    "Use the persisted account selection consistently in journal, discipline, assistant, and settings instead of always choosing the first account.",
+    "Remove default URL/DB fallback values where deployment contract requires environment variables to fail fast."
+  ],
+  "critical_code_review_comments": [
+    "Frontend and live Expo configuration use EXPO_PUBLIC_BACKEND_URL with EXPO_BACKEND_URL fallback; the requested contract names EXPO_BACKEND_URL.",
+    "backend/server.py uses os.environ.get('DB_NAME', 'trading_journal') despite the environment contract requiring DB_NAME from backend/.env without a default.",
+    "Expo web logs the expected expo-notifications push-token limitation; native notification permission/scheduling was not verifiable in web preview."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_2.json"
+  ],
+  "success_rate": {
+    "backend": "100% (2/2)",
+    "frontend": "100% of executed flows (login, navigation, journal CRUD/filter, discipline CRUD, AI, account create/edit, reports, responsive overflow)"
+  },
+  "seed_data_creation": "UI test created and deleted a TEST_UI_XAU trade and TEST UI discipline note. TEST UI Account was created for account/settings testing and remains in the QA account.",
+  "retest_needed": true,
+  "should_call_test_agent_after_fix": true,
+  "context_for_next_testing_agent": "Use qa.apextrade@example.com / ApexTrade123. Preview: https://trader-daily-tracker.preview.emergentagent.com. AI returned a Spanish result; PDF buttons opened new authenticated tabs; body width equaled viewport width at 390px.",
+  "rca_of_issue": "The cross-screen account isolation issue is visible in source: Home stores apextrade_account but other screens call getAccounts() and select list[0]. Reproduction: create a second account, select it in Home/Settings, open Journal or Discipline, and observe requests use the first account ID."
+}

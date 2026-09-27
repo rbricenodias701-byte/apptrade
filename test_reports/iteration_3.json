@@ -1,0 +1,45 @@
+{
+  "summary": "Regression PASS. Multi-account isolation fix verified end-to-end via UI: after selecting a second account (TEST_2ND) on Home, Journal and Discipline now use the persisted selection (apextrade_account) — trade and note created for TEST_2ND do NOT appear on Cuenta principal, and switching back to TEST_2ND shows the data again. Backend regression pytest suite (2/2) passes. 2-loss rule card is rendered on Home and Discipline.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Settings screen default account selection",
+        "issue": "settings.tsx still initializes local edit target with list[0] (getAccounts()[0]) instead of getSelectedAccount(list). Non-blocking for the reviewed regression (user can tap any account in the list), but inconsistent with Home/Journal/Discipline/Assistant which now honor the persisted apextrade_account. Reference: /app/frontend/app/settings.tsx:24.",
+        "affected_testIDs": ["settings-screen", "account-<id>"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_apextrade_regression.py",
+    "/app/test_reports/pytest/pytest_results_iteration3.xml",
+    "/app/test_reports/screens/iter3c_home_2nd.png",
+    "/app/test_reports/screens/iter3c_disc_2nd.png",
+    "/app/test_reports/screens/iter3c_home_principal.png",
+    "/app/test_reports/screens/iter3c_disc_principal.png"
+  ],
+  "action_items": [
+    "Optional: align settings.tsx initial `selected` account with getSelectedAccount(list) so the edit form defaults to the same account the user picked on Home. Currently list[0] is loaded first (Cuenta principal); the user must tap the desired account to edit its metas."
+  ],
+  "critical_code_review_comments": [
+    "Fix in /app/frontend/src/api.ts:getSelectedAccount is correctly awaited on load and on useFocusEffect in Home, Journal, Discipline and Assistant.",
+    "Backend enforces account ownership per user via owned_account() on every trade/note/dashboard/notes/reports endpoint — no cross-user leakage risk.",
+    "Backend /api/dashboard consecutive_losses loop iterates trades sorted by entry_date desc; behavior consistent with 2-loss stop rule."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (2/2 pytest)",
+    "frontend": "100% of executed isolation flows (login → create 2nd account → switch chip → journal trade → discipline note → switch back to Cuenta principal → verify no leak → switch back to TEST_2ND → verify data intact)"
+  },
+  "seed_data_creation": "All test data cleaned up. Two stray TEST_2ND accounts (from mid-run retries) and one leaked note were removed via API. Final account list: Cuenta principal, TEST UI Account (from iter2).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "QA login: qa.apextrade@example.com / ApexTrade123. Preview URL: https://trader-daily-tracker.preview.emergentagent.com. NOTE: mcp_browser_automation opens a fresh browser context per invocation, so AsyncStorage (IndexedDB) does NOT persist between separate script runs — write the entire isolation flow in ONE script or the persisted account key will be lost.",
+  "rca_of_issue": "Iteration 2 root cause: Home persisted apextrade_account into AsyncStorage but Journal/Discipline/Assistant used getAccounts()[0], sending API calls with the wrong account_id. Fix: getSelectedAccount(accounts) helper in /app/frontend/src/api.ts reads the persisted key and is now awaited in Home, Journal, Discipline and Assistant on focus. Verified fixed in iteration 3."
+}

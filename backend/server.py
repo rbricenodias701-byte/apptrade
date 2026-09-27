@@ -20,7 +20,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get("DB_NAME", "trading_journal")]
+db = client[os.environ["DB_NAME"]]
 JWT_SECRET = os.environ.get("JWT_SECRET", "change-this-trading-journal-secret")
 
 app = FastAPI(title="ApexTrade Journal API")
