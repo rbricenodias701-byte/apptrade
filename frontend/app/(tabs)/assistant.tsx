@@ -1,0 +1,23 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
+
+import { Account, getAccounts, getBriefing } from "@/src/api";
+import { AppScroll, Card, Heading, PrimaryButton } from "@/src/components/trading-ui";
+import { makeStyles, useTheme } from "@/src/theme";
+
+export default function AssistantScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
+  const [account, setAccount] = useState<Account | null>(null);
+  const [question, setQuestion] = useState("¿Qué debo vigilar hoy para respetar mi gestión?");
+  const [briefing, setBriefing] = useState<{ text: string; market: { available: boolean; price?: number; change?: number; change_pct?: number; message?: string } } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useFocusEffect(useCallback(() => { getAccounts().then((list) => setAccount(list[0] || null)).catch(() => undefined); }, []));
+  const analyze = async () => { if (!account) return; setLoading(true); setError(""); try { setBriefing(await getBriefing(account.id, question)); } catch (err) { setError(err instanceof Error ? err.message : "La IA no respondió"); } finally { setLoading(false); } };
+  return <AppScroll><Heading eyebrow="COACH DE MERCADO" title="Decide con contexto" subtitle="Una lectura educativa para empezar el día con calma." /><Card accent><View style={styles.goldTitle}><View style={styles.goldIcon}><MaterialCommunityIcons name="gold" size={25} color={colors.onBrandPrimary} /></View><View style={{ flex: 1 }}><Text style={styles.cardTitle}>Oro · XAU/USD</Text><Text style={styles.muted}>Contexto de mercado + disciplina</Text></View>{briefing?.market.available ? <View style={{ alignItems: "flex-end" }}><Text style={styles.price}>{briefing.market.price?.toFixed(2)}</Text><Text style={{ color: (briefing.market.change || 0) >= 0 ? colors.success : colors.error, fontWeight: "900" }}>{(briefing.market.change || 0) >= 0 ? "+" : ""}{briefing.market.change_pct?.toFixed(2)}%</Text></View> : null}</View></Card><Card><Text style={styles.cardTitle}>¿Qué quieres revisar?</Text><TextInput value={question} onChangeText={setQuestion} multiline placeholder="Escribe tu pregunta" placeholderTextColor={colors.muted} style={styles.input} /><PrimaryButton title={loading ? "Analizando…" : "Generar briefing"} icon="auto-fix" onPress={analyze} disabled={loading || !account} />{loading ? <ActivityIndicator color={colors.brandPrimary} /> : null}{error ? <Text style={{ color: colors.error, fontWeight: "700" }}>{error}</Text> : null}</Card>{briefing ? <Card><View style={styles.resultHeader}><MaterialCommunityIcons name="lightbulb-on-outline" size={24} color={colors.brandPrimary} /><Text style={styles.cardTitle}>Lectura de hoy</Text></View><Text style={styles.briefing}>{briefing.text}</Text>{!briefing.market.available ? <Text style={styles.muted}>{briefing.market.message}</Text> : null}</Card> : <Card><Text style={styles.cardTitle}>Cómo usar este espacio</Text><Text style={styles.muted}>La IA te ayuda a hacer preguntas, detectar riesgos y recordar tus reglas. No sustituye tu análisis ni garantiza resultados.</Text></Card>}<Text style={styles.disclaimer}>Información educativa. No es una señal de compra o venta.</Text></AppScroll>;
+}
+
+const useStyles = makeStyles((colors) => ({ goldTitle: { flexDirection: "row", alignItems: "center", gap: 12 }, goldIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center" }, cardTitle: { color: colors.onSurface, fontSize: 17, fontWeight: "900" }, muted: { color: colors.muted, fontSize: 14, lineHeight: 20 }, price: { color: colors.onSurface, fontWeight: "900", fontSize: 17 }, input: { minHeight: 90, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceTertiary, color: colors.onSurface, padding: 14, fontSize: 16, textAlignVertical: "top" }, resultHeader: { flexDirection: "row", alignItems: "center", gap: 8 }, briefing: { color: colors.onSurfaceSecondary, fontSize: 16, lineHeight: 25 }, disclaimer: { color: colors.muted, fontSize: 12, textAlign: "center" } }));

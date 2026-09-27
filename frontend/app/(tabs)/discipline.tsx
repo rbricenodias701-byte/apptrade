@@ -1,0 +1,26 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { Pressable, Text, TextInput, View } from "react-native";
+
+import { Account, createNote, deleteNote, getAccounts, getDashboard, getNotes } from "@/src/api";
+import { AppScroll, Card, Heading, PrimaryButton } from "@/src/components/trading-ui";
+import { makeStyles, useTheme } from "@/src/theme";
+
+type Note = { id: string; text: string; mood: string; created_at: string };
+export default function DisciplineScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
+  const [account, setAccount] = useState<Account | null>(null);
+  const [losses, setLosses] = useState(0);
+  const [stop, setStop] = useState(false);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [text, setText] = useState("");
+  const load = useCallback(async () => { const accounts = await getAccounts(); const selected = accounts[0]; if (!selected) return; setAccount(selected); const [dashboard, items] = await Promise.all([getDashboard(selected.id), getNotes(selected.id)]); setLosses(dashboard.consecutive_losses); setStop(dashboard.should_stop); setNotes(items); }, []);
+  useFocusEffect(useCallback(() => { load().catch(() => undefined); }, [load]));
+  const add = async () => { if (!account || !text.trim()) return; const note = await createNote({ account_id: account.id, text: text.trim(), mood: "neutral" }); setNotes((items) => [note, ...items]); setText(""); };
+  const remove = async (id: string) => { if (!account) return; await deleteNote(id, account.id); setNotes((items) => items.filter((item) => item.id !== id)); };
+  return <AppScroll><Heading eyebrow="DISCIPLINA" title="Protege tu mente" subtitle="El objetivo no es operar más. Es operar mejor." /><Card accent={stop}><View style={styles.ruleHeader}><View style={[styles.shield, { backgroundColor: stop ? colors.error : colors.brandTertiary }]}><MaterialCommunityIcons name={stop ? "stop-circle-outline" : "shield-check-outline"} size={28} color={stop ? colors.onError : colors.brandPrimary} /></View><View style={{ flex: 1, gap: 4 }}><Text style={styles.cardTitle}>{stop ? "Sesión terminada" : "Regla de dos pérdidas"}</Text><Text style={styles.muted}>{stop ? "Retírate ahora. Mañana tendrás otra oportunidad." : `${losses} de ${account?.stop_after_losses || 2} pérdidas consecutivas.`}</Text></View></View><View style={styles.ruleBar}><View style={[styles.ruleFill, { width: `${Math.min(losses / (account?.stop_after_losses || 2), 1) * 100}%`, backgroundColor: stop ? colors.error : colors.brandPrimary }]} /></View></Card><Card><Text style={styles.cardTitle}>Recordatorio de hoy</Text><Text style={styles.quote}>“Respeta tu límite. Una pérdida controlada es parte del plan; una tercera pérdida por revancha es una decisión.”</Text><View style={styles.check}><MaterialCommunityIcons name="check-circle-outline" size={22} color={colors.success} /><Text style={styles.muted}>Definí mi pérdida máxima antes de operar</Text></View><View style={styles.check}><MaterialCommunityIcons name="check-circle-outline" size={22} color={colors.success} /><Text style={styles.muted}>Acepto retirarme después de 2 pérdidas</Text></View></Card><Card><Text style={styles.cardTitle}>Qué puedo mejorar</Text><TextInput value={text} onChangeText={setText} multiline placeholder="Escribe una reflexión breve…" placeholderTextColor={colors.muted} style={styles.input} /><PrimaryButton title="Guardar reflexión" icon="notebook-plus-outline" onPress={add} disabled={!text.trim()} />{notes.map((note) => <View key={note.id} style={styles.note}><View style={{ flex: 1 }}><Text style={styles.noteText}>{note.text}</Text><Text style={styles.muted}>{new Date(note.created_at).toLocaleDateString()}</Text></View><Pressable onPress={() => remove(note.id)} hitSlop={8}><MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.error} /></Pressable></View>)}</Card></AppScroll>;
+}
+
+const useStyles = makeStyles((colors) => ({ ruleHeader: { flexDirection: "row", gap: 12, alignItems: "center" }, shield: { width: 54, height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center" }, cardTitle: { color: colors.onSurface, fontSize: 18, fontWeight: "900" }, muted: { color: colors.muted, fontSize: 14, lineHeight: 20 }, ruleBar: { height: 10, borderRadius: 8, overflow: "hidden", backgroundColor: colors.surfaceTertiary }, ruleFill: { height: "100%", borderRadius: 8 }, quote: { color: colors.onSurfaceSecondary, fontSize: 16, lineHeight: 24, fontStyle: "italic" }, check: { flexDirection: "row", alignItems: "center", gap: 8 }, input: { minHeight: 90, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceTertiary, color: colors.onSurface, padding: 14, fontSize: 16, textAlignVertical: "top" }, note: { flexDirection: "row", gap: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.divider }, noteText: { color: colors.onSurfaceSecondary, fontSize: 15, lineHeight: 21 } }));

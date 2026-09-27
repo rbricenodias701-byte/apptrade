@@ -1,0 +1,147 @@
+{
+  "app_name": "ApexTrade Journal",
+  "personality": "7 Dark-First Utility DARK",
+  "personality_one_liner": "A precision dark-mode trading journal and capital management command center built for high-contrast visibility, strict risk control, and real-time gold market insights.",
+  "color": {
+    "surface": "#0F1215",
+    "onSurface": "#F0F4F8",
+    "surfaceSecondary": "#181D23",
+    "onSurfaceSecondary": "#C5D0DE",
+    "surfaceTertiary": "#222A35",
+    "onSurfaceTertiary": "#9AAEC4",
+    "surfaceInverse": "#FFFFFF",
+    "onSurfaceInverse": "#0F1215",
+    "brand": "#D97706",
+    "brandPrimary": "#F59E0B",
+    "onBrandPrimary": "#0F1215",
+    "brandSecondary": "#B45309",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#2B1E12",
+    "success": "#10B981",
+    "onSuccess": "#0F1215",
+    "warning": "#FBBF24",
+    "onWarning": "#0F1215",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#3B82F6",
+    "onInfo": "#0F1215",
+    "border": "#27303D",
+    "borderStrong": "#F59E0B",
+    "divider": "#1E2631",
+    "muted": "#8CA0B8",
+    "onBrand": "#0F1215"
+  },
+  "typography": {
+    "displayFontFamily": "Barlow Condensed",
+    "textFontFamily": "Satoshi",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous touch spacing with compact tactical data cards; sticky primary bottom CTA and clear tabular hierarchy.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": 0,
+  "navigation": "bottom_tabs",
+  "icon_set": "MaterialCommunityIcons",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": [
+      "Use solid dark graphite surfaces for maximum visibility and zero eye strain",
+      "Use amber/gold warm accents for primary metrics and active states"
+    ],
+    "dont's": [
+      "Avoid low-contrast grey text",
+      "Avoid transparent blurring over complex charts"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Home",
+      "purpose": "Command center displaying multi-account capital overview, today's P&L, daily challenge target, 2-loss stop rule status, and quick trade entry.",
+      "states": {
+        "loading": "Loading account performance and live gold momentum...",
+        "empty": "No trading data recorded for this account yet. Tap 'New Trade' to log your first operation.",
+        "error": "Failed to load account metrics. Please check connection and retry."
+      },
+      "layout": "Vertical scroll with sticky header switcher for accounts, main capital banner, daily target progress bar, gold market briefing preview card, recent trades list with edit/delete actions, and floating new trade action."
+    },
+    {
+      "name": "TradeJournal",
+      "purpose": "Comprehensive editable trade log with P&L, notes, filtering, and instant edit/delete capabilities.",
+      "states": {
+        "loading": "Fetching trade history...",
+        "empty": "No trades match the current filter. Add trades to track performance.",
+        "error": "Could not retrieve trade records. Tap to retry."
+      },
+      "layout": "Search & filter header bar, date grouped trade list items with clear win/loss badge indicators, expandable review notes, and inline edit/delete modals."
+    },
+    {
+      "name": "AiAssistant",
+      "purpose": "AI trading coach providing gold market briefing (momentum, direction, impulse) and practical discipline advice.",
+      "states": {
+        "loading": "Analyzing gold price action and trading psychology...",
+        "empty": "AI insights currently unavailable.",
+        "error": "Failed to fetch AI market briefing. Retry."
+      },
+      "layout": "Gold momentum banner card, live XAU/USD key levels grid, AI practical discipline checklist, and interactive prompt assistant."
+    },
+    {
+      "name": "DisciplineJournal",
+      "purpose": "Dedicated psychological notes, rules checklist, 2-loss rule monitor, and daily improvement reflections.",
+      "states": {
+        "loading": "Loading discipline rules...",
+        "empty": "No discipline notes recorded yet.",
+        "error": "Failed to load notes."
+      },
+      "layout": "Rule enforcement cards (e.g. 2-loss stop rule status), personal improvement notes log, and quick reflection recorder."
+    },
+    {
+      "name": "Settings",
+      "purpose": "Manage multiple accounts, switch between currency or percentage target mode, configure notifications, and data backups.",
+      "states": {
+        "loading": "Loading configuration...",
+        "empty": "No settings available.",
+        "error": "Error loading settings."
+      },
+      "layout": "Account selector manager, calculation mode toggle (Amount vs Percentage), risk management threshold inputs, and notification toggles."
+    }
+  ],
+  "images": {
+    "gold_chart_hero": {
+      "url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxnb2xkJTIwYnVsbGlvbiUyMGNoYXJ0JTIwZmluYW5jZSUyMGRhcmslMjBtb2RlfGVufDB8fHx8MTc5MDUzMTU4MXww&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxnb2xkJTIwYnVsbGlvbiUyMGNoYXJ0JTIwZmluYW5jZSUyMGRhcmslMjBtb2RlfGVufDB8fHx8MTc5MDUzMTU4MXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Gold candlestick chart and dark terminal background"
+    }
+  },
+  "instructions_to_main_agent": "Implement a dark-first trading journal app with high-contrast amber/gold typography and icons for users with vision requirements. Support multi-account management, editable and deletable trades, dynamic amount vs percentage goals, a 2-loss stop rule monitor, AI gold market briefing, and discipline notes without intrusive notifications. Ensure robust state management for CRUD operations on trades."
+}
