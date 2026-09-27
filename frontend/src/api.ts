@@ -2,7 +2,8 @@ import Constants from "expo-constants";
 
 import { storage } from "@/src/utils/storage";
 
-const configuredUrl = Constants.expoConfig?.extra?.backendUrl ?? process.env.EXPO_PUBLIC_BACKEND_URL;
+// Expo's public variable is the project contract; EXPO_BACKEND_URL remains a safe fallback for local setups.
+const configuredUrl = Constants.expoConfig?.extra?.backendUrl ?? process.env.EXPO_PUBLIC_BACKEND_URL ?? process.env.EXPO_BACKEND_URL;
 const API_URL = `${String(configuredUrl).replace(/\/$/, "")}/api`;
 export const TOKEN_KEY = "apextrade_token";
 

@@ -1,0 +1,49 @@
+{
+  "summary": "Authenticated backend regression passed for trade CRUD, notes, dashboard, all PDF periods, and AI briefing. Mobile web preview loaded at 390x844 and login/dashboard/journal creation/navigation partially passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Journal result/filter flow",
+        "issue": "Combined Playwright flow stopped on a brittle visible-text assertion immediately after create; the created trade was visibly present in the screenshot, but this flow needs a stable selector and full retest.",
+        "testID": "missing",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_apextrade_regression.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/screens/initial.png",
+    "/app/test_reports/screens/flows.png"
+  ],
+  "action_items": [
+    "Add data-testid/testID attributes to auth fields/buttons, tabs, journal controls, settings controls, report actions, and AI states for reliable mobile regression testing.",
+    "Run a complete UI retest for edit/delete/filter, discipline notes, account switching/deletion, settings target mode, notifications, PDF opening, and AI response after selectors are stabilized.",
+    "Align frontend API configuration with the requested EXPO_BACKEND_URL convention or document the existing EXPO_PUBLIC_BACKEND_URL convention; current live configuration works but the source does not use EXPO_BACKEND_URL."
+  ],
+  "critical_code_review_comments": [
+    "Frontend source uses EXPO_PUBLIC_BACKEND_URL, while the stated environment contract specifies EXPO_BACKEND_URL; this is a deployment/configuration risk.",
+    "Several screen interactions have no testID, making critical flows difficult to automate robustly.",
+    "Expo logs an expected web limitation warning for notification push-token support; permission/scheduling behavior is not verifiable as native functionality in web preview."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_apextrade_regression.py",
+    "/app/test_reports/iteration_1.json"
+  ],
+  "success_rate": {
+    "backend": "100% (2/2)",
+    "frontend": "partial: login/dashboard/journal create/navigation passed; remaining flows not completed"
+  },
+  "seed_data_creation": "Created and cleaned up TEST-prefixed trades and note through regression tests. One QA journal trade created during UI testing remains in the QA account.",
+  "retest_needed": true,
+  "should_call_test_agent_after_fix": true,
+  "context_for_next_testing_agent": "Use qa.apextrade@example.com / ApexTrade123. Backend tests are reusable and pass. Preview is https://trader-daily-tracker.preview.emergentagent.com. UI selectors currently rely mostly on text/accessibility labels because testIDs are absent.",
+  "rca_of_issue": "The UI run did not fail at the journal operation itself: the trade appeared correctly and the screenshot showed XAUUSD Compra +125.00 USD. The combined script halted on a strict text assertion, and the lack of stable testIDs prevents reliable continuation. This is a testability gap rather than confirmed journal business-logic failure."
+}

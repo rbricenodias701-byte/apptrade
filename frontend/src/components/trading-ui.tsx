@@ -14,9 +14,9 @@ export function AppScroll({ children, ...props }: ScrollViewProps) {
   return <ScrollView {...props} style={styles.scroll} contentContainerStyle={[styles.content, { paddingTop: insets.top + 18, paddingBottom: bottomChrome + 28 }]} keyboardShouldPersistTaps="handled">{children}</ScrollView>;
 }
 
-export function Card({ children, accent = false }: { children: React.ReactNode; accent?: boolean }) {
+export function Card({ children, accent = false, testID }: { children: React.ReactNode; accent?: boolean; testID?: string }) {
   const styles = useStyles();
-  return <View style={[styles.card, accent && styles.accentCard]}>{children}</View>;
+  return <View testID={testID} style={[styles.card, accent && styles.accentCard]}>{children}</View>;
 }
 
 export function Heading({ eyebrow, title, subtitle }: { eyebrow?: string; title: string; subtitle?: string }) {
@@ -34,14 +34,14 @@ export function Progress({ value, tone = "brand" }: { value: number; tone?: "bra
   return <View style={{ height: 10, borderRadius: 999, backgroundColor: colors.surfaceTertiary, overflow: "hidden" }}><View style={{ height: "100%", width: `${Math.min(Math.max(value, 0), 100)}%`, borderRadius: 999, backgroundColor: tone === "success" ? colors.success : colors.brandPrimary }} /></View>;
 }
 
-export function PrimaryButton({ title, onPress, icon, secondary = false, disabled = false }: { title: string; onPress: () => void; icon?: keyof typeof MaterialCommunityIcons.glyphMap; secondary?: boolean; disabled?: boolean }) {
+export function PrimaryButton({ title, onPress, icon, secondary = false, disabled = false, testID }: { title: string; onPress: () => void; icon?: keyof typeof MaterialCommunityIcons.glyphMap; secondary?: boolean; disabled?: boolean; testID?: string }) {
   const styles = useStyles();
-  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.button, secondary && styles.secondaryButton, disabled && styles.disabled, pressed && styles.pressed]}>{icon ? <MaterialCommunityIcons name={icon} size={20} color={secondary ? styles.secondaryButtonText.color : styles.buttonText.color} /> : null}<Text style={secondary ? styles.secondaryButtonText : styles.buttonText}>{title}</Text></Pressable>;
+  return <Pressable testID={testID} accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.button, secondary && styles.secondaryButton, disabled && styles.disabled, pressed && styles.pressed]}>{icon ? <MaterialCommunityIcons name={icon} size={20} color={secondary ? styles.secondaryButtonText.color : styles.buttonText.color} /> : null}<Text style={secondary ? styles.secondaryButtonText : styles.buttonText}>{title}</Text></Pressable>;
 }
 
-export function SmallIconButton({ icon, onPress, label }: { icon: keyof typeof MaterialCommunityIcons.glyphMap; onPress: () => void; label: string }) {
+export function SmallIconButton({ icon, onPress, label, testID }: { icon: keyof typeof MaterialCommunityIcons.glyphMap; onPress: () => void; label: string; testID?: string }) {
   const { colors } = useTheme();
-  return <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={onPress} hitSlop={8} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary, opacity: pressed ? 0.7 : 1 })}><MaterialCommunityIcons name={icon} size={21} color={colors.onSurface} /></Pressable>;
+  return <Pressable testID={testID} accessibilityLabel={label} accessibilityRole="button" onPress={onPress} hitSlop={8} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary, opacity: pressed ? 0.7 : 1 })}><MaterialCommunityIcons name={icon} size={21} color={colors.onSurface} /></Pressable>;
 }
 
 const useStyles = makeStyles((colors) => ({
