@@ -1,11 +1,54 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="refresh" content="0; url=frontend/">
-    <title>AppTrade</title>
-  </head>
-  <body>
-    Redirigiendo...
-  </body>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AppTrade — Tu App de Trading</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .contenedor {
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      padding: 40px 30px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    h1 { font-size: 2rem; margin-bottom: 10px; color: #38bdf8; }
+    .subtitulo { color: #94a3b8; margin-bottom: 30px; }
+    .info { background: rgba(56,189,248,0.1); padding: 20px; border-radius: 12px; margin: 20px 0; }
+    pre { background: #0f172a; padding: 15px; border-radius: 8px; margin: 15px 0; overflow-x: auto; }
+    .enlace { color: #38bdf8; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="contenedor">
+    <h1>🚀 AppTrade</h1>
+    <p class="subtitulo">Tu aplicación de gestión y análisis de trading</p>
+    
+    <div class="info">
+      <p><strong>✅ ¡Tu sitio ya está en línea!</strong></p>
+      <p style="margin: 15px 0;">Enlace permanente:</p>
+      <p class="enlace">https://rbricenodias701-byte.github.io/apptrade/</p>
+    </div>
+
+    <p style="margin: 25px 0 10px;"><strong>📱 Para ver la app completa:</strong></p>
+    <p style="font-size: 0.9rem; color: #94a3b8;">Esta aplicación está construida con Expo/React Native. Para ejecutarla:</p>
+    <pre>npm install
+npx expo start</pre>
+    <p style="font-size: 0.85rem; color: #64748b; margin-top: 10px;">Escanea el código QR con la app <strong>Expo Go</strong> en tu celular.</p>
+  </div>
+</body>
 </html>
+
